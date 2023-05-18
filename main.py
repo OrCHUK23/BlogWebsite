@@ -89,7 +89,8 @@ def edit_post(post_id):
         return redirect(url_for('show_post', index=post.id))
     return render_template('make-post.html', form=edit_form, is_edit=True)
 
-@app.route('/delete/<int:post_id>', methods=["GET", "POST"])
+
+@app.route('/delete/<int:post_id>')
 def delete_post(post_id):
     """
     Function handles the deletion of a post from the db.
@@ -105,6 +106,7 @@ def delete_post(post_id):
         db.session.rollback()
     return redirect(url_for('get_all_posts'))
     # return render_template('index.html')
+
 
 @app.route("/new-post", methods=["GET", "POST"])
 def new_post():
