@@ -44,7 +44,6 @@ class CreatePostForm(FlaskForm):
     subtitle = StringField("Subtitle", validators=[DataRequired()])
     author = StringField("Your Name", validators=[DataRequired()])
     img_url = StringField("Blog Image URL", validators=[DataRequired(), URL()])
-    # body = StringField("Blog Content", validators=[DataRequired()])
     body = CKEditorField("Blog Content", validators=[DataRequired()])
     submit = SubmitField("Submit Post")
 
@@ -73,6 +72,40 @@ def show_post(index):
     return redirect(url_for('get_all_posts', post=requested_post))
 
 
+@app.route('/edit-post/<int:post_id>', methods=["GET", "POST"])
+def edit_post(post_id):
+    """
+    Function handles the ability to edit an existing post.
+    :param post_id: The ID of the post that should be edited.
+    """
+    # Get current post
+    post = db.session.get(BlogPost, post_id)
+    # Populate the form with the existing post details.
+    edit_form = CreatePostForm(obj=post)
+    if edit_form.validate_on_submit():
+        # Update the post with the data from the submitted form.
+        edit_form.populate_obj(post)
+        db.session.commit()
+        return redirect(url_for('show_post', index=post.id))
+    return render_template('make-post.html', form=edit_form, is_edit=True)
+
+@app.route('/delete/<int:post_id>', methods=["GET", "POST"])
+def delete_post(post_id):
+    """
+    Function handles the deletion of a post from the db.
+    :param post_id: The ID of the post that should be deleted.
+    """
+    try:
+        # Get the post that should be deleted from the db.
+        post_to_delete = db.session.get(BlogPost, post_id)
+        # Try to delete the post from the db.
+        db.session.delete(post_to_delete)
+        db.session.commit()
+    except exc.IntegrityError:
+        db.session.rollback()
+    return redirect(url_for('get_all_posts'))
+    # return render_template('index.html')
+
 @app.route("/new-post", methods=["GET", "POST"])
 def new_post():
     """
@@ -99,7 +132,7 @@ def new_post():
         posts = db.session.query(BlogPost).all()
         # Redirect to the home page with the newly updated posts.
         return redirect(url_for('get_all_posts', all_posts=posts))
-    return render_template("make-post.html", form=post)
+    return render_template("make-post.html", form=post, is_edit=False)
 
 
 @app.route("/about")
