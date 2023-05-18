@@ -10,13 +10,12 @@
 					<h1>{{post.title}}</h1>
 					<h2 class="subheading">{{post.subtitle}}</h2>
 					<span class="meta">Posted by
-              <a href="#">{{post.author}}</a>
-              on {{post.date}}</span>
+              <a href="#">{{post.author}}</a> on {{post.date}}</span>
           </div>
         </div>
       </div>
     </div>
-  </header>
+</header>
 
   <!-- Post Content -->
   <article>
@@ -28,12 +27,11 @@
           </p>
            <hr>
            <div class="clearfix">
-          <a class="btn btn-primary float-right" href="#">Edit Post</a>
-        </div>
+                <a class="btn btn-primary float-right" href="{{ url_for('edit_post', post_id=post.id) }}">Edit Post</a>
+            </div>
           </div>
       </div>
     </div>
   </article>
-
-  <hr>
+<hr>
 {% include "footer.html" %}
