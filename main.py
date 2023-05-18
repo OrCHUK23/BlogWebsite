@@ -69,7 +69,8 @@ def show_post(index):
     for blog_post in posts:
         if blog_post.id == index:
             requested_post = blog_post
-    return render_template("post.html", post=requested_post)
+            return render_template("post.html", post=requested_post)
+    return redirect(url_for('get_all_posts', post=requested_post))
 
 
 @app.route("/new-post", methods=["GET", "POST"])
@@ -80,7 +81,7 @@ def new_post():
     """
     post = CreatePostForm()
     if request.method == 'POST' and post.validate_on_submit():
-        # ADD THE POST
+        # Create new post object.
         post_to_add = BlogPost(
             title=request.form['title'],
             subtitle=request.form['subtitle'],
@@ -89,7 +90,7 @@ def new_post():
             body=request.form['body'],
             date=datetime.today().strftime("%B %d, %Y")
         )
-        try:  # Try to add the new post to the db.
+        try:  # Try to add the new object to the db.
             db.session.add(post_to_add)
             db.session.commit()
         except exc.IntegrityError:
