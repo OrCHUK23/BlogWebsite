@@ -21,6 +21,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///posts.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Line below only required once, when creating DB.
+# with app.app_context():
+#     db.create_all()
 
 class BlogPost(db.Model):
     """
@@ -105,7 +108,6 @@ def delete_post(post_id):
     except exc.IntegrityError:
         db.session.rollback()
     return redirect(url_for('get_all_posts'))
-    # return render_template('index.html')
 
 
 @app.route("/new-post", methods=["GET", "POST"])
