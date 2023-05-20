@@ -13,7 +13,7 @@ from sqlalchemy import exc, ForeignKey, Table, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import date
-from forms import CreatePostForm, RegisterForm, LoginForm
+from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # ========== App, Bootstrap and ckeditor initialization. ==========
@@ -37,6 +37,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     posts = relationship("BlogPost", back_populates="author")
+    comments = relationship("Comment", back_populates="comment_author")
 
     def __init__(self, name, email, password):
         self.name = name
@@ -56,6 +57,18 @@ class BlogPost(db.Model):
     date = db.Column(db.String(30), nullable=False)
     body = db.Column(db.Text, nullable=False)
     img_url = db.Column(db.String(250), nullable=False)
+    comments = relationship("Comment", back_populates="parent_post")
+
+
+# ========== Comment section table. ==========
+class Comment(db.Model):
+    __tablename__ = "comments"
+    id = db.Column(db.Integer, primary_key=True)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    comment_author = relationship("User", back_populates="comments")
+    post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"))
+    parent_post = relationship("BlogPost", back_populates="comments")
+    text = db.Column(db.Text, nullable=False)
 
 
 # ========== Login manager initialization. ==========
@@ -81,9 +94,9 @@ def admin_only(f):
     return decorated_function
 
 
-# # Line below only required once, when creating DB.
-# with app.app_context():
-#     db.create_all()
+# Line below only required once, when creating DB.
+with app.app_context():
+    db.create_all()
 
 
 # ========== Posts management section. ==========
@@ -96,15 +109,38 @@ def get_all_posts():
     return render_template("index.html", all_posts=posts)
 
 
-@app.route("/post/<int:index>")
+@app.route("/post/<int:index>", methods=["GET", "POST"])
 def show_post(index):
     """
     Function tries to fetch a blog from the db and render its page.
     :param index: ID of the blog post in the db.
     """
     requested_post = BlogPost.query.get(index)
-    return render_template("post.html", post=requested_post) if requested_post \
-        else redirect(url_for('get_all_posts'))
+    comment_form = CommentForm()
+    if comment_form.validate_on_submit():
+        if not current_user.is_authenticated:
+            flash('You need to login or register to comment.')
+            return redirect(url_for('login'))
+
+        # Create new comment object.
+        new_comment = Comment(
+            text=comment_form.comment_text.data,
+            comment_author=current_user,
+            parent_post=requested_post
+        )
+        try:
+            db.session.add(new_comment)
+            db.session.commit()
+            # Clean the comment section text.
+            return redirect(url_for("show_post", post=requested_post.id))
+        except exc.IntegrityError:
+            db.session.rollback()
+    return render_template(
+        'post.html',
+        post=requested_post,
+        form=comment_form,
+        current_user=current_user
+    )
 
 
 @app.route("/new-post", methods=["GET", "POST"])
