@@ -84,14 +84,9 @@ def show_post(index):
     Function tries to fetch a blog from the db and render its page.
     :param index: ID of the blog post in the db.
     """
-    requested_post = None
-    posts = BlogPost.query.get(index)
-    for blog_post in posts:
-        if blog_post.id == index:
-            requested_post = blog_post
-            return render_template("post.html", post=requested_post)
-    return redirect(url_for('get_all_posts', post=requested_post))
-
+    requested_post = BlogPost.query.get(index)
+    return render_template("post.html", post=requested_post) if requested_post\
+        else redirect(url_for('get_all_posts'))
 
 @app.route("/new-post", methods=["GET", "POST"])
 def new_post():
@@ -179,12 +174,11 @@ def register():
             db.session.add(new_user)
             db.session.commit()
         except exc.IntegrityError:
-            print("ERROR")
             db.session.rollback()
+            flash("Email already exists. Log in instead or click on 'Forgot Password'.", category='error')
+            return redirect(url_for('login'))
         else:
-            # flash("Successfully signed up.")
-            print("YES")
-            # login_user(new_user)
+            login_user(new_user)
             return redirect(url_for('get_all_posts'))
     return render_template('register.html', form=register_form)
 
@@ -195,15 +189,23 @@ def login():
     Function handles the blog login for existing users.
     """
     login_form = LoginForm()
-    if request.method == 'POST':
+    if request.method == 'POST' and login_form.validate_on_submit():
         email = login_form.email.data
         password = login_form.password.data
         user = User.query.filter_by(email=email).first()
-        # Email doesn't exist.
-        if not user:
+        # Check if "forgot password" was clicked.
+        if login_form.forgot_password.data:
+            flash("Forgot password functionality coming soon!", "info")
+            return redirect(url_for('login'))
+        # Check if email doesn't exist.
+        elif not user:
             flash("Email does not exist, try again.")
+            return redirect(url_for('login'))
+        # Check if wrong password.
         elif not check_password_hash(user.password, password):
             flash("Incorrect password, please try again.")
+            return redirect(url_for('login'))
+        # Success login.
         else:
             login_user(user)
             return redirect(url_for('get_all_posts'))
@@ -212,6 +214,10 @@ def login():
 
 @app.route('/logout')
 def logout():
+    """
+    Function handles logging out of the user.
+    """
+    logout_user()
     return redirect(url_for('get_all_posts'))
 
 
