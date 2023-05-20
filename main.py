@@ -1,15 +1,17 @@
 import os
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, abort
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from flask_gravatar import Gravatar
 from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
 from flask_ckeditor import CKEditor, CKEditorField
+from functools import wraps
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, URL
-from sqlalchemy import exc
+from sqlalchemy import exc, ForeignKey, Table, Integer
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
 from datetime import date
 from forms import CreatePostForm, RegisterForm, LoginForm
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,18 +29,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 
-# ========== Blogs table. ==========
-class BlogPost(db.Model):
-    __tablename__ = "blog_posts"
-    id = db.Column(db.Integer, primary_key=True)
-    author = db.Column(db.String(100), nullable=False)
-    title = db.Column(db.String(250), unique=True, nullable=False)
-    subtitle = db.Column(db.String(250), nullable=False)
-    date = db.Column(db.String(30), nullable=False)
-    body = db.Column(db.Text, nullable=False)
-    img_url = db.Column(db.String(250), nullable=False)
-
-
 # ========== Users table. ==========
 class User(UserMixin, db.Model):
     __tablename__ = "users"
@@ -46,11 +36,26 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
+    posts = relationship("BlogPost", back_populates="author")
 
     def __init__(self, name, email, password):
         self.name = name
         self.email = email
         self.password = password
+
+
+# ========== Blogs table. ==========
+class BlogPost(db.Model):
+    __tablename__ = "blog_posts"
+    id = db.Column(db.Integer, primary_key=True)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Create reference to the User object, the "posts" refers to the posts property in the User class.
+    author = relationship("User", back_populates="posts")
+    title = db.Column(db.String(250), unique=True, nullable=False)
+    subtitle = db.Column(db.String(250), nullable=False)
+    date = db.Column(db.String(30), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    img_url = db.Column(db.String(250), nullable=False)
 
 
 # ========== Login manager initialization. ==========
@@ -61,6 +66,19 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def user_loader(user_id):
     return User.query.get(int(user_id))
+
+
+# ========== Create admin-only decorator. ==========
+def admin_only(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.id != 1:
+            # Redirect to unauthorized page.
+            return abort(403)
+        # Otherwise, that's the admin user.
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 # # Line below only required once, when creating DB.
@@ -85,28 +103,30 @@ def show_post(index):
     :param index: ID of the blog post in the db.
     """
     requested_post = BlogPost.query.get(index)
-    return render_template("post.html", post=requested_post) if requested_post\
+    return render_template("post.html", post=requested_post) if requested_post \
         else redirect(url_for('get_all_posts'))
 
+
 @app.route("/new-post", methods=["GET", "POST"])
+@admin_only
 def new_post():
     """
-    Function handles the possibility of adding a new blog post to the
-    website.
+    Function handles the possibility of adding
+    a new blog post to the website.
     """
-    post = CreatePostForm()
-    if request.method == 'POST' and post.validate_on_submit():
+    post_form = CreatePostForm()
+    if request.method == 'POST' and post_form.validate_on_submit():
         # Create new post object.
-        new_post = BlogPost(
-            title=request.form['title'],
-            subtitle=request.form['subtitle'],
-            body=request.form['body'],
-            img_url=request.form['img_url'],
-            author=request.form['author'],
+        add_new_post = BlogPost(
+            title=post_form.title.data,
+            subtitle=post_form.subtitle.data,
+            body=post_form.body.data,
+            img_url=post_form.img_url.data,
+            author=current_user,
             date=date.today().strftime("%B %d, %Y")
         )
         try:  # Try to add the new object to the db.
-            db.session.add(new_post)
+            db.session.add(add_new_post)
             db.session.commit()
         except exc.IntegrityError:
             db.session.rollback()
@@ -114,10 +134,11 @@ def new_post():
         posts = db.session.query(BlogPost).all()
         # Redirect to the home page with the newly updated posts.
         return redirect(url_for('get_all_posts', all_posts=posts))
-    return render_template("make-post.html", form=post, is_edit=False)
+    return render_template("make-post.html", form=post_form, is_edit=False)
 
 
 @app.route('/edit-post/<int:post_id>', methods=["GET", "POST"])
+@admin_only
 def edit_post(post_id):
     """
     Function handles the ability to edit an existing post.
@@ -136,6 +157,7 @@ def edit_post(post_id):
 
 
 @app.route('/delete/<int:post_id>')
+@admin_only
 def delete_post(post_id):
     """
     Function handles the deletion of a post from the db.
@@ -153,6 +175,7 @@ def delete_post(post_id):
 
 
 # ========== Users management section ==========
+
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
