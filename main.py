@@ -2,16 +2,12 @@ import os
 from flask import Flask, render_template, redirect, url_for, request, flash, abort
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf import FlaskForm
 from flask_gravatar import Gravatar
-from flask_login import UserMixin, login_user, LoginManager, login_required, current_user, logout_user
-from flask_ckeditor import CKEditor, CKEditorField
+from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user
+from flask_ckeditor import CKEditor
 from functools import wraps
-from wtforms import StringField, SubmitField
-from wtforms.validators import DataRequired, URL
-from sqlalchemy import exc, ForeignKey, Table, Integer
+from sqlalchemy import exc
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import date
 from forms import CreatePostForm, RegisterForm, LoginForm, CommentForm
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -94,9 +90,20 @@ def admin_only(f):
     return decorated_function
 
 
-# Line below only required once, when creating DB.
-with app.app_context():
-    db.create_all()
+# # Line below only required once, when creating DB.
+# with app.app_context():
+#     db.create_all()
+
+# ========== Gravatar initialization. ==========
+gravatar = Gravatar(
+    app,
+    rating='g',
+    default='retro',
+    force_default=False,
+    force_lower=False,
+    use_ssl=False,
+    base_url=None
+)
 
 
 # ========== Posts management section. ==========
@@ -132,7 +139,8 @@ def show_post(index):
             db.session.add(new_comment)
             db.session.commit()
             # Clean the comment section text.
-            return redirect(url_for("show_post", post=requested_post.id))
+            flash("Successfully added the comment.")
+            return redirect(url_for("show_post", index=requested_post.id))
         except exc.IntegrityError:
             db.session.rollback()
     return render_template(
