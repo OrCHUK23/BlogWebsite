@@ -2,7 +2,7 @@
 
 ## Description
 This project is a blogging website developed using the Flask framework.
-It allows users to create accounts, write blog posts, add comments, and manage the content of the website.
+It allows users to create accounts, read blog posts and add comments to them.
 The website includes features like user registration, login, authentication, and authorization.
 
 ## Technologies Used
@@ -13,7 +13,7 @@ The website includes features like user registration, login, authentication, and
 - Flask-Login: Extension for Flask that handles user session management.
 - Flask-WTF: Extension for Flask that integrates WTForms library for form handling.
 - Flask-CKEditor: Extension for Flask that provides a rich text editor using CKEditor.
-- SQLite: Database system used for storing user information, blog posts, and comments.
+- SQLite: Database system used for storing user information, blog posts and comments.
 - Gunicorn: WSGI HTTP server used for deployment.
 
 ## Project Structure
@@ -46,7 +46,6 @@ To run the project locally, follow these steps:
 - Logout from the website when done.
 
 ## Deployment
-
 To deploy the project to a production environment, follow these steps:
 
 1. Set up a server with the required dependencies (Python, Gunicorn, SQLite).
@@ -67,4 +66,5 @@ To deploy the project to a production environment, follow these steps:
 
 ---
 
-*Note: This Markdown file provides an overview of the project and its structure. Refer to the source code for the actual implementation details.*
+*Note: This Markdown file provides an overview of the project and its structure.
+Refer to the source code for the actual implementation details.*
